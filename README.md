@@ -1,11 +1,11 @@
 # mmdr — Mermaid review
 
+[![CI](https://github.com/ztnel/mmdr/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/ztnel/mmdr/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/ztnel/mmdr)](https://github.com/ztnel/mmdr/releases/latest)
+
 ![Component-anchored review of a large UML diagram, with a reviewer question, agent answer, and follow-up](docs/images/component-review.png)
 
 *Illustrative UML review: each component has its own conversation.*
-
-[![CI](https://github.com/ztnel/mmdr/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/ztnel/mmdr/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/ztnel/mmdr)](https://github.com/ztnel/mmdr/releases/latest)
 
 Local, keyboard-first diagram conversations with agents. Render Mermaid as
 SVG, attach comments to elements, and receive agent replies in the diagram.
