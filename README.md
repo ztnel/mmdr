@@ -1,5 +1,9 @@
 # mmdr — Mermaid review
 
+![Component-anchored review of a large UML diagram, with a reviewer question, agent answer, and follow-up](docs/images/component-review.png)
+
+*Illustrative UML review: each component has its own conversation.*
+
 Local, keyboard-first diagram conversations with agents. Render Mermaid as
 SVG, attach comments to elements, and receive agent replies in the diagram.
 GitHub-dark UI, offline assets, live source reload, and persistent chats.
