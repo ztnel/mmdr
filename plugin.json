@@ -1,0 +1,9 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "mmdr",
+  "version": "0.1.0",
+  "description": "Local, keyboard-first Mermaid reviews with agent feedback over MCP.",
+  "repository": "https://github.com/ztnel/mmdr",
+  "license": "MIT",
+  "keywords": ["mermaid", "diagram-review", "mcp", "agent-skills"]
+}

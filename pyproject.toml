@@ -1,0 +1,24 @@
+[build-system]
+requires = ["hatchling==1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mmdr"
+version = "0.1.0"
+description = "Local, keyboard-first Mermaid reviews with agent feedback over MCP."
+requires-python = ">=3.11"
+license = "MIT"
+dependencies = ["mcp==1.30.0", "platformdirs==4.9.4"]
+
+[project.scripts]
+mmdr = "mmdr.cli:main"
+mmdr-mcp = "mmdr.mcp_server:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mmdr"]
+
+[dependency-groups]
+dev = ["pytest==8.4.2"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

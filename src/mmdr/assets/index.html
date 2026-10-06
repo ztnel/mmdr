@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>mmdr — Mermaid Review</title>
+  <link rel="stylesheet" href="/style.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <header>
+    <h1>mmdr</h1>
+    <span id="source"></span>
+    <span id="wake"><span id="wake-dot" class="wake-dot offline" role="img" aria-label="Agent not waiting"></span><span id="wake-text"></span></span>
+    <button id="close" class="danger">Close review</button>
+  </header>
+  <div id="error" role="alert" hidden></div>
+  <main>
+    <section class="diagram">
+      <nav aria-label="Diagram controls">
+        <button id="zoom-in" aria-label="Zoom in">+</button>
+        <button id="zoom-out" aria-label="Zoom out">−</button>
+        <button id="fit">Fit</button>
+        <button id="reset">100%</button>
+        <button id="whole">Whole diagram</button>
+        <button id="all-threads">All threads</button>
+        <span id="scale">100%</span>
+        <span id="type"></span>
+      </nav>
+      <div id="canvas" tabindex="0" aria-label="Diagram. Drag background to pan; scroll to zoom.">
+        <div id="viewport"></div>
+        <div id="markers" aria-label="Element comment counts"></div>
+        <section id="discussion" aria-label="Selected element discussion" hidden>
+          <div class="discussion-heading">
+            <h2 id="selection">Whole diagram</h2>
+            <button id="dismiss" aria-label="Hide discussion">×</button>
+          </div>
+          <p id="anchor-hint">Select any diagram element to add context.</p>
+          <div id="threads" aria-live="polite"></div>
+          <form id="new-comment">
+            <label for="content">Enter to post · Shift+Enter for newline</label>
+            <textarea id="content" maxlength="1500" required placeholder="Write a comment"></textarea>
+            <button class="primary">Comment</button>
+          </form>
+        </section>
+        <footer id="keyboard-status" aria-label="Keyboard navigation">
+          <span id="vim-mode">NORMAL</span>
+          <span class="keyboard-hint">hjkl elements · / search · n/N matches · c comment · ;c diagram comment · m/M comments · :e refresh · :q close</span>
+          <div id="search-bar" hidden>
+            <span aria-hidden="true">/</span>
+            <input id="search" type="search" aria-label="Search diagram elements" autocomplete="off" placeholder="Search diagram">
+          </div>
+          <div id="command-bar" hidden>
+            <span aria-hidden="true">:</span>
+            <input id="command" aria-label="Vim command" autocomplete="off" spellcheck="false">
+          </div>
+          <span id="command-status" role="status"></span>
+          <span id="search-status" role="status"></span>
+          <span id="comment-status" role="status">0 comments</span>
+        </footer>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

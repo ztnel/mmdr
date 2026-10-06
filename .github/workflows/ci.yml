@@ -1,0 +1,34 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  python:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: ["3.11", "3.13"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: ${{ matrix.python }}
+      - run: uv sync --frozen
+      - run: uv run --frozen pytest
+      - run: uv build
+      - run: uv run --frozen python scripts/check_package.py
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: uv sync --frozen
+      - run: npm ci
+      - run: uv run --frozen python scripts/build_assets.py
+      - run: npx playwright install --with-deps chromium
+      - run: uv run --frozen python scripts/browser_tests.py
