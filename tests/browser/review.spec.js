@@ -9,6 +9,13 @@ const examples = JSON.parse(readFileSync("tests/examples.json", "utf8"));
 const python = process.env.PYTHON || "python3";
 let temporary, source, stateDir, processHandle, url;
 
+async function waitForRender(page, name) {
+  await expect(page.locator("#type"), name).toHaveText(/\S/);
+  await expect(page.locator("#viewport > svg"), name).toBeVisible();
+  await expect(page.locator("#error"), name).toBeHidden();
+  await expect(page.locator("#new-comment button"), name).toBeEnabled();
+}
+
 test.beforeEach(async () => {
   temporary = mkdtempSync(join(tmpdir(), "diagram-browser-"));
   source = join(temporary, "diagram.mmd");
@@ -59,8 +66,7 @@ test("all registered Mermaid types render offline and every primitive is selecta
   for (const [name, content] of fixtures) {
     writeFileSync(source, content);
     await page.reload();
-    await expect(page.locator("#viewport > svg"), name).toBeVisible();
-    await expect(page.locator("#error"), name).toBeHidden();
+    await waitForRender(page, name);
     const type = await page.locator("#type").textContent();
     renderedTypes.push(type);
     const coverage = await page.evaluate(async () => {
@@ -85,6 +91,31 @@ test("all registered Mermaid types render offline and every primitive is selecta
   });
   expect(new Set(renderedTypes)).toEqual(new Set(registered));
   expect(external).toEqual([]);
+});
+
+test("render completion waits for anchor registration before reading the diagram type", async ({ page }) => {
+  writeFileSync(source, examples.requirementDiagram[0]);
+  let release;
+  const registration = new Promise((resolve) => { release = resolve; });
+  await page.route("**/api/anchors", async (route) => {
+    await registration;
+    await route.continue();
+  });
+  try {
+    await page.goto(url, { waitUntil: "commit" });
+    await expect(page.locator("#viewport > svg")).toBeVisible();
+    await expect(page.locator("#type")).toHaveText("");
+    release();
+    await waitForRender(page, "requirement");
+    await expect(page.locator("#type")).toHaveText("requirement");
+    await page.getByRole("button", { name: "Whole diagram", exact: true }).click();
+    await page.locator("#content").fill("Render is complete");
+    await page.locator("#new-comment button").click();
+    await expect(page.locator("#threads")).toContainText("Render is complete");
+  } finally {
+    release();
+    await page.unrouteAll({ behavior: "wait" });
+  }
 });
 
 test("zoom, threads, live revisions, escaped text, and CLI replies", async ({ page }) => {
