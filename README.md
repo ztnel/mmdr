@@ -73,9 +73,17 @@ multiple diagrams. Marker syntax: `<!-- mermaid-review: unique-id -->`.
 
 ## Keyboard
 
-`hjkl` selects directionally (sequence fallback), `/` searches, `n/N` cycles
-matches, `c` composes, `;c` comments on the whole diagram, `m/M` cycles messages.
-Enter posts; Shift+Enter inserts a newline. Escape exits typing.
+`?` opens the full shortcut help; Escape closes it.
+`+`/`=` and `-` zoom around the canvas center; mouse-wheel zoom follows the pointer.
+
+`hjkl` pans in NORMAL and selects directionally in VISUAL (sequence fallback).
+Selecting an element does not open its discussion; `c` or `m/M` opens it,
+and `j/k` then scrolls its history instead.
+`/` searches, `n/N` cycles matches, `c` composes, `;c` comments on the whole
+diagram, and `m/M` cycles messages. Enter posts; Shift+Enter inserts a newline.
+Escape exits typing/search/command mode; outside input modes it deselects and
+closes the discussion. The bottom-left indicator shows `NORMAL` without a
+selection and orange `VISUAL` with one. Typing never triggers pan or scrolling.
 `:e` re-renders; `:q`, `:wq`, and `:x` close commenting, not the browser tab.
 
 Flowchart node IDs retain comments across revisions. Other elements are

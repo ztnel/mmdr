@@ -58,9 +58,16 @@ It never approves code or closes a browser tab. Reopen to resume.
 
 ## Viewer
 
+`?` opens shortcut help outside editable controls; Escape closes it.
+
 Bundled Mermaid renders offline. `/` searches, `n/N` cycles matches, `hjkl`
-selects directionally, `c` comments, `;c` comments on the whole diagram,
+pans in NORMAL and selects directionally in VISUAL (sequence fallback).
+Selection leaves discussions closed; `c` opens/comments, `;c` comments on the whole diagram,
 and `m/M` cycles individual messages. Enter posts; Shift+Enter adds a newline.
+`c` and `m/M` activate a discussion; `j/k` then scrolls its history.
+Escape exits input modes; otherwise it deselects and closes the discussion.
+The mode indicator shows `NORMAL` without selection and orange `VISUAL` with
+selection. Editable controls do not trigger pan or thread scrolling.
 `:e` refreshes; `:q`, `:wq`, and `:x` close the review.
 
 Proven flowchart node identities retain threads across revisions. Other anchors
