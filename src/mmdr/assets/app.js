@@ -229,7 +229,11 @@ function owner(key) {
 }
 
 function updateSelectionGlow() {
-  for (const previous of $("viewport").querySelectorAll(".selection-path-glow")) {
+  updatePathGlow("selection-path-glow", selected);
+}
+
+function updatePathGlow(className, key, hover = false) {
+  for (const previous of $("viewport").querySelectorAll(`.${className}`)) {
     previous.classList.remove("visible");
     setTimeout(() => {
       const filter = previous.ownerSVGElement?.querySelector(`#${previous.dataset.glowFilter}`);
@@ -239,7 +243,7 @@ function updateSelectionGlow() {
       previous.remove();
     }, 320);
   }
-  const element = owner(selected);
+  const element = owner(key);
   if (!element) return;
   const glow = element.cloneNode(true);
   const shapes = "path,rect,circle,ellipse,polygon,polyline,line";
@@ -255,7 +259,7 @@ function updateSelectionGlow() {
       child.style.setProperty("stroke-width", "3px", "important");
     }
   }
-  glow.classList.add("selection-path-glow");
+  glow.classList.add(className);
   glow.setAttribute("aria-hidden", "true");
   const svg = element.ownerSVGElement;
   const filterId = `${svg.id}-selection-blur-${crypto.randomUUID()}`;
@@ -267,19 +271,20 @@ function updateSelectionGlow() {
     filter.id = filterId;
     const bounds = element.getBBox();
     filter.setAttribute("filterUnits", "userSpaceOnUse");
-    filter.setAttribute("x", bounds.x - 24);
-    filter.setAttribute("y", bounds.y - 24);
-    filter.setAttribute("width", bounds.width + 48);
-    filter.setAttribute("height", bounds.height + 48);
+    const padding = hover ? 24 / scale : 24;
+    filter.setAttribute("x", bounds.x - padding);
+    filter.setAttribute("y", bounds.y - padding);
+    filter.setAttribute("width", bounds.width + padding * 2);
+    filter.setAttribute("height", bounds.height + padding * 2);
     const blur = document.createElementNS(ns, "feGaussianBlur");
-    blur.setAttribute("stdDeviation", "4");
+    blur.setAttribute("stdDeviation", hover ? 3 / scale : 4);
     filter.append(blur);
     defs.append(filter);
     svg.prepend(defs);
   }
   glow.style.filter = `url(#${filterId})`;
   for (const shape of [glow, ...glow.querySelectorAll(shapes)].filter((item) => item.matches(shapes))) {
-    shape.style.setProperty("stroke-width", "7px", "important");
+    shape.style.setProperty("stroke-width", `${hover ? 5 / scale : 7}px`, "important");
   }
   element.parentNode.append(glow);
   // Establish the transparent state before transitioning the path-only overlay.
@@ -327,7 +332,7 @@ function renderMarkers() {
     const pending = threads.some(threadPending);
     const marker = button(String(count), async () => {
       showAllThreads = false;
-      select(anchor.key);
+      select(anchor.key, null, null, true);
     });
     marker.className = `comment-marker ${pending ? "pending" : "answered"}`;
     marker.dataset.anchor = anchor.key;
@@ -351,6 +356,8 @@ function fit() {
 }
 
 function select(key, threadId = null, messageId = null, openDiscussion = false) {
+  hovered = null;
+  updatePathGlow("hover-path-glow", null, true);
   selected = key;
   activeThread = threadId;
   activeMessage = messageId;
@@ -653,7 +660,9 @@ $("close").onclick = async () => {
   catch (exc) { error(exc.message); }
 };
 $("canvas").addEventListener("click", (event) => {
+  if (event.composedPath().includes($("markers"))) return;
   if (event.target.closest("#discussion,#markers,#keyboard-status")) return;
+  if (event.detail > 0) return;
   const anchor = event.target.closest("[data-anchor]");
   if (anchor) select(anchor.dataset.anchor);
 });
@@ -679,18 +688,61 @@ $("canvas").addEventListener("wheel", (event) => {
   zoomAt(scale * Math.exp(-event.deltaY / 500), cx, cy);
 }, { passive: false });
 let drag = null;
+let hovered = null;
+$("canvas").addEventListener("pointermove", (event) => {
+  if (drag) return;
+  const anchor = event.target.closest("#viewport [data-anchor]");
+  const key = anchor?.dataset.anchor !== selected ? anchor?.dataset.anchor : null;
+  if (key === hovered) return;
+  hovered = key;
+  updatePathGlow("hover-path-glow", key, true);
+});
+$("canvas").addEventListener("pointerleave", () => {
+  if (drag) return;
+  hovered = null;
+  updatePathGlow("hover-path-glow", null, true);
+});
 $("canvas").addEventListener("pointerdown", (event) => {
+  if (!event.isPrimary || event.button !== 0 || drag) return;
   if (event.target.closest("#discussion,#markers,#keyboard-status")) return;
-  if (event.target.closest("[data-anchor]")) return;
-  drag = { px: event.clientX, py: event.clientY, x, y };
+  const anchor = event.target.closest("[data-anchor]");
+  event.preventDefault();
+  drag = {
+    pointerId: event.pointerId, px: event.clientX, py: event.clientY, x, y,
+    anchor: anchor?.dataset.anchor, moved: false,
+  };
   $("canvas").setPointerCapture(event.pointerId);
 });
 $("canvas").addEventListener("pointermove", (event) => {
-  if (!drag) return;
+  if (!drag || event.pointerId !== drag.pointerId) return;
+  if (!drag.moved) {
+    if (Math.hypot(event.clientX - drag.px, event.clientY - drag.py) < 4) return;
+    drag.moved = true;
+  }
   x = drag.x + event.clientX - drag.px; y = drag.y + event.clientY - drag.py; transform();
 });
-$("canvas").addEventListener("pointerup", () => { drag = null; });
-$("canvas").addEventListener("pointercancel", () => { drag = null; });
+function endDrag(event) {
+  if (!drag || event.pointerId !== drag.pointerId) return;
+  const pressed = drag;
+  drag = null;
+  hovered = null;
+  updatePathGlow("hover-path-glow", null, true);
+  if ($("canvas").hasPointerCapture(event.pointerId)) {
+    $("canvas").releasePointerCapture(event.pointerId);
+  }
+  if (event.type === "pointerup" && !pressed.moved && pressed.anchor &&
+      Math.hypot(event.clientX - pressed.px, event.clientY - pressed.py) < 4) {
+    const target = document.elementFromPoint(event.clientX, event.clientY);
+    const anchor = target?.closest("#viewport [data-anchor]");
+    if (anchor?.dataset.anchor === pressed.anchor) {
+      select(pressed.anchor);
+      $("canvas").focus({ preventScroll: true });
+    }
+  }
+}
+window.addEventListener("pointerup", endDrag);
+window.addEventListener("pointercancel", endDrag);
+$("canvas").addEventListener("lostpointercapture", endDrag);
 
 await refresh(true);
 setInterval(() => refresh(), 800);

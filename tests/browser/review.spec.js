@@ -374,6 +374,12 @@ test("class labels, path-only glow, native zoom and bounded chat layout", async 
   await page.goto(url);
   const first = page.getByRole("button", { name: "Comment on First", exact: true });
   await expect(first).toBeVisible();
+  const outline = first.locator("path,rect").first();
+  const originalStroke = await outline.evaluate((element) => getComputedStyle(element).stroke);
+  await first.hover();
+  await expect(outline).toHaveCSS("stroke", originalStroke);
+  await expect(page.locator(".hover-path-glow.visible")).toHaveCount(1);
+  expect(await page.locator(".hover-path-glow [data-anchor],.hover-path-glow text").count()).toBe(0);
   await first.focus();
   await page.keyboard.press("Enter");
   await expect(page.locator("#selection")).toHaveText("First");
@@ -414,6 +420,194 @@ test("class labels, path-only glow, native zoom and bounded chat layout", async 
   }
   expect(await page.locator("#threads").evaluate((history) => history.scrollHeight > history.clientHeight)).toBe(true);
   expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight && scrollY === 0)).toBe(true);
+});
+
+test("selected element and background drags pan without changing thread context", async ({ page }) => {
+  await page.goto(url);
+  await waitForRender(page);
+  const canvas = page.locator("#canvas");
+  const alpha = page.locator('[data-anchor="flowchart:A"]').first();
+  const beta = page.locator('[data-anchor="flowchart:B"]').first();
+  const position = () => page.locator("#viewport").evaluate((element) =>
+    [parseFloat(element.style.left), parseFloat(element.style.top)]);
+  await alpha.click();
+  await expect(page.locator("#selection")).toHaveText("Alpha");
+  await expect(page.locator("#discussion")).toBeHidden();
+  const stationary = await position();
+  const box = await alpha.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 2, box.y + box.height / 2 + 1);
+  await page.mouse.up();
+  expect(await position()).toEqual(stationary);
+  await page.keyboard.press("c");
+  await page.locator("#content").fill("Keep this thread selected");
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".message")).toHaveCount(1);
+  await page.keyboard.press("m");
+  const message = await page.locator(".current-comment").getAttribute("data-message");
+  const start = await position();
+  const selected = await alpha.boundingBox();
+  await page.mouse.move(selected.x + selected.width / 2, selected.y + selected.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(selected.x + selected.width / 2 + 60, selected.y + selected.height / 2 + 40, { steps: 6 });
+  await page.mouse.up();
+  expect(await position()).toEqual([start[0] + 60, start[1] + 40]);
+  await expect(page.locator("#selection")).toHaveText("Alpha");
+  await expect(page.locator("#discussion")).toBeVisible();
+  await expect(page.locator(".current-comment")).toHaveAttribute("data-message", message);
+  await expect(page.locator("#vim-mode")).toHaveText("VISUAL");
+  const panel = await page.locator("#discussion").boundingBox();
+  const bar = await page.locator("#keyboard-status").boundingBox();
+  expect(panel.y + panel.height).toBeLessThanOrEqual(bar.y);
+  const background = await canvas.boundingBox();
+  await page.mouse.move(background.x + 10, background.y + 10);
+  await page.mouse.down();
+  await page.mouse.move(background.x + 40, background.y + 30);
+  await page.mouse.up();
+  expect(await position()).toEqual([start[0] + 90, start[1] + 60]);
+  await expect(page.locator(".current-comment")).toHaveAttribute("data-message", message);
+  await page.locator("#content").fill("Unsent text");
+  const beforeControlDrag = await position();
+  const input = await page.locator("#content").boundingBox();
+  await page.mouse.move(input.x + 10, input.y + 20);
+  await page.mouse.down();
+  await page.mouse.move(input.x + 60, input.y + 20);
+  await page.mouse.up();
+  expect(await position()).toEqual(beforeControlDrag);
+  await expect(page.locator("#content")).toHaveValue("Unsent text");
+  await page.locator("#dismiss").click();
+  await page.locator("#reset").click();
+  await beta.click();
+  await expect(page.locator("#selection")).toHaveText("Beta");
+  await expect(page.locator("#discussion")).toBeHidden();
+});
+
+test("hover previews and release selection leave all component drags free to pan", async ({ page }) => {
+  await page.goto(url);
+  await waitForRender(page);
+  const alpha = page.locator('[data-anchor="flowchart:A"]').first();
+  const canvas = page.locator("#canvas");
+  const position = () => page.locator("#viewport").evaluate((element) =>
+    [parseFloat(element.style.left), parseFloat(element.style.top)]);
+  await alpha.hover();
+  await expect(page.locator(".hover-path-glow.visible")).toHaveCount(1);
+  const blur = await page.locator(".hover-path-glow").evaluate((element) =>
+    document.getElementById(element.dataset.glowFilter).querySelector("feGaussianBlur").getAttribute("stdDeviation"));
+  expect(Number(blur)).toBeGreaterThan(0);
+  await page.locator("#zoom-out").click();
+  await alpha.hover();
+  const hoverScale = await page.locator("#scale").textContent();
+  const scaledBlur = await page.locator(".hover-path-glow.visible").evaluate((element) =>
+    Number(document.getElementById(element.dataset.glowFilter).querySelector("feGaussianBlur").getAttribute("stdDeviation")));
+  expect(scaledBlur * parseInt(hoverScale) / 100).toBeCloseTo(3, 1);
+  await page.locator("#reset").click();
+  await alpha.hover();
+  const start = await position();
+  const box = await alpha.boundingBox();
+  const px = box.x + box.width / 2, py = box.y + box.height / 2;
+  await page.mouse.move(px, py);
+  await page.mouse.down();
+  await expect(page.locator("#vim-mode")).toHaveText("NORMAL");
+  await expect(page.locator("#viewport .selected")).toHaveCount(0);
+  await expect(page.locator(".hover-path-glow.visible")).toHaveCount(1);
+  await page.mouse.move(px + 50, py + 30, { steps: 5 });
+  await expect(page.locator(".hover-path-glow.visible")).toHaveCount(1);
+  await page.mouse.up();
+  await expect(page.locator(".hover-path-glow.visible")).toHaveCount(0);
+  expect(await position()).toEqual([start[0] + 50, start[1] + 30]);
+  await expect(page.locator("#viewport .selected")).toHaveCount(0);
+  expect(await page.evaluate(() => window.getSelection().toString())).toBe("");
+  await alpha.hover();
+  await expect(page.locator(".hover-path-glow.visible")).toHaveCount(1);
+  await page.mouse.down();
+  await expect(page.locator(".hover-path-glow.visible")).toHaveCount(1);
+  await page.mouse.up();
+  await expect(page.locator("#selection")).toHaveText("Alpha");
+  await expect(page.locator(".hover-path-glow.visible")).toHaveCount(0);
+  await expect(page.locator(".selection-path-glow.visible")).toHaveCount(1);
+  await expect(page.locator("#discussion")).toBeHidden();
+  await canvas.focus();
+  await page.keyboard.press("Escape");
+  await canvas.evaluate((element) => {
+    element.addEventListener("pointerdown", (event) => {
+      element.dataset.pointer = String(event.pointerId);
+    }, { once: true });
+  });
+  const moved = await alpha.boundingBox();
+  await page.mouse.move(moved.x + moved.width / 2, moved.y + moved.height / 2);
+  await page.mouse.down();
+  await canvas.evaluate((element) => {
+    const bounds = element.getBoundingClientRect();
+    element.dispatchEvent(new PointerEvent("pointerup", {
+      pointerId: Number(element.dataset.pointer), clientX: bounds.right - 10,
+      clientY: bounds.top + 10, bubbles: true,
+    }));
+  });
+  await page.mouse.up();
+  await expect(page.locator("#viewport .selected")).toHaveCount(0);
+});
+
+test("comment-count markers open their element discussion without moving the canvas", async ({ page }) => {
+  await page.goto(url);
+  await waitForRender(page);
+  await page.locator('[data-anchor="flowchart:A"]').first().click();
+  await page.keyboard.press("c");
+  await page.locator("#content").fill("Alpha marker thread");
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".message")).toHaveCount(1);
+  await page.locator("#canvas").focus();
+  await page.keyboard.press("Escape");
+  await page.locator('[data-anchor="flowchart:B"]').first().click();
+  await expect(page.locator("#discussion")).toBeHidden();
+  const position = await page.locator("#viewport").getAttribute("style");
+  await page.locator(".comment-marker[data-anchor='flowchart:A']").click();
+  await expect(page.locator("#selection")).toHaveText("Alpha");
+  await expect(page.locator("#discussion")).toBeVisible();
+  await expect(page.locator("#threads")).toContainText("Alpha marker thread");
+  await expect(page.locator("#vim-mode")).toHaveText("VISUAL");
+  await expect(page.locator("#viewport")).toHaveAttribute("style", position);
+  await page.locator("#dismiss").click();
+  const marker = page.locator(".comment-marker[data-anchor='flowchart:A']");
+  await marker.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#discussion")).toBeVisible();
+});
+
+test("pointer cancellation and capture loss stop panning and leave clicks usable", async ({ page }) => {
+  await page.goto(url);
+  await waitForRender(page);
+  const canvas = page.locator("#canvas");
+  const alpha = page.locator('[data-anchor="flowchart:A"]').first();
+  const position = () => page.locator("#viewport").evaluate((element) =>
+    [parseFloat(element.style.left), parseFloat(element.style.top)]);
+  await alpha.click();
+  for (const ending of ["pointercancel", "lostpointercapture"]) {
+    await canvas.evaluate((element) => {
+      element.addEventListener("pointerdown", (event) => {
+        element.dataset.pointer = String(event.pointerId);
+      }, { once: true });
+    });
+    const box = await alpha.boundingBox();
+    const px = box.x + box.width / 2, py = box.y + box.height / 2;
+    await page.mouse.move(px, py);
+    await page.mouse.down();
+    await page.mouse.move(px + 10, py + 10);
+    const moved = await position();
+    await canvas.evaluate((element, ending) => {
+      const pointerId = Number(element.dataset.pointer);
+      if (ending === "pointercancel") {
+        element.dispatchEvent(new PointerEvent("pointercancel", { pointerId, bubbles: true }));
+      } else {
+        element.releasePointerCapture(pointerId);
+      }
+    }, ending);
+    await page.mouse.move(px + 20, py + 20);
+    expect(await position()).toEqual(moved);
+    await page.mouse.up();
+    await alpha.click();
+    await expect(page.locator("#selection")).toHaveText("Alpha");
+  }
 });
 
 test("keyboard and button zoom preserve the canvas center after panning", async ({ page }) => {
