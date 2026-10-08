@@ -71,42 +71,33 @@ Runs until interrupted. Use `--block <heading-or-marker>` for Markdown with
 multiple diagrams. Marker syntax: `<!-- mermaid-review: unique-id -->`.
 `--state-dir` before the operation selects another store.
 
-## Keyboard
+## Commands
 
-`?` opens the full shortcut help; Escape closes it.
-`+`/`=` and `-` zoom around the canvas center; mouse-wheel zoom follows the pointer.
+| Command | Action |
+|---|---|
+| `?` | Open shortcut help; Escape closes it |
+| `hjkl` | Pan in NORMAL; select directionally in VISUAL (sequence fallback) |
+| `j/k` in an active discussion | Scroll its history instead of navigating the diagram |
+| `/` · `n/N` | Search elements; cycle next/previous match |
+| `c` · `;c` | Open/comment on the selection; comment on the whole diagram |
+| `m/M` | Cycle next/previous message and open its discussion |
+| Enter · Shift+Enter | Post a comment; insert a newline while typing |
+| Escape | Exit typing/search/command mode; otherwise deselect and close the discussion |
+| `+`/`=` · `-` | Zoom in/out around the canvas center |
+| Mouse wheel | Zoom around the pointer |
+| `:e` | Re-render |
+| `:q` · `:wq` · `:x` | Close commenting, not the browser tab |
 
-`hjkl` pans in NORMAL and selects directionally in VISUAL (sequence fallback).
-Selecting an element does not open its discussion; `c` or `m/M` opens it,
-and `j/k` then scrolls its history instead.
-`/` searches, `n/N` cycles matches, `c` composes, `;c` comments on the whole
-diagram, and `m/M` cycles messages. Enter posts; Shift+Enter inserts a newline.
-Escape exits typing/search/command mode; outside input modes it deselects and
-closes the discussion. The bottom-left indicator shows `NORMAL` without a
-selection and orange `VISUAL` with one. Typing never triggers pan or scrolling.
-`:e` re-renders; `:q`, `:wq`, and `:x` close commenting, not the browser tab.
+Selection leaves discussions closed until `c` or `m/M` opens one.
+The bottom-left indicator shows `NORMAL` without selection and orange `VISUAL`
+with one. Typing never triggers pan or scrolling.
 
 Flowchart node IDs retain comments across revisions. Other elements are
 revision-bound and require explicit reattachment after changes. Parse errors
 retain the last valid diagram. Legacy state syntax uses the current compatible
 state renderer; original source is untouched.
 
-## Development
-
-```console
-uv sync --frozen
-uv run --frozen pytest
-npm ci
-npx playwright install chromium
-uv run --frozen python scripts/browser_tests.py
-uv build
-uv run --frozen python scripts/check_package.py
-```
-
-Browser tests cover all 38 registered types in Mermaid 11.17.2, offline
-rendering, chat, keyboard navigation, and revisions. Rebuild pinned browser
-assets with `uv run python scripts/build_assets.py`; license notices ship
-alongside the bundle. CI exercises Python tests on Windows, macOS, and Linux.
+Contributor setup, tests, and asset builds: [Development](docs/development.md).
 
 MIT licensed. Vendored dependencies retain their notices in
 `src/mmdr/assets/vendor/THIRD-PARTY.txt`. Publication is pending human review.

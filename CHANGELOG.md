@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.1.1
+
+### Fixed
+
+- Context-aware keyboard navigation: `hjkl` pans in NORMAL, selects elements
+  in VISUAL, and scrolls an active discussion. Editable controls no longer
+  trigger canvas or discussion shortcuts. ([#4](https://github.com/ztnel/mmdr/pull/4))
+- Shortcut help opens with `?` and documents navigation and input modes.
+  ([#4](https://github.com/ztnel/mmdr/pull/4))
+- Dragging selected components or the diagram background pans without changing
+  the selection or discussion; hover feedback previews selectable elements.
+  ([#5](https://github.com/ztnel/mmdr/pull/5))
+- Pointer cancellation and capture loss stop panning cleanly. Zoom controls
+  preserve the canvas center after panning. ([#5](https://github.com/ztnel/mmdr/pull/5))
+
 ## v0.1.0
 
 Initial release of mmdr: local, keyboard-first Mermaid reviews with agents.
