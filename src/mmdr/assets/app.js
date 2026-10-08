@@ -9,7 +9,7 @@ let state = null;
 let rendered = "";
 let failed = "";
 let anchors = [];
-let selected = "diagram";
+let selected = null;
 let scale = 1, x = 0, y = 0;
 let polling = false;
 let threadFingerprint = "";
@@ -27,6 +27,12 @@ function snap(key) {
   const bounds = element.getBoundingClientRect();
   x += canvas.width * .4 - (bounds.left + bounds.width / 2 - canvas.left);
   y += canvas.height / 2 - (bounds.top + bounds.height / 2 - canvas.top);
+  transform();
+}
+
+function pan(dx, dy) {
+  x += dx;
+  y += dy;
   transform();
 }
 
@@ -61,6 +67,34 @@ function jumpElement(key) {
   select(next.key);
   snap(next.key);
   $("canvas").focus({ preventScroll: true });
+}
+
+function updateMode() {
+  const target = document.activeElement;
+  const mode = state?.closed ? "CLOSED"
+    : target === $("command") ? "COMMAND"
+    : target === $("search") ? "SEARCH"
+    : target?.matches("textarea,input,select") || target?.isContentEditable ? "INSERT"
+    : selected ? "VISUAL" : "NORMAL";
+  $("vim-mode").textContent = mode;
+  $("vim-mode").classList.toggle("visual-mode", mode === "VISUAL");
+  $("keyboard-status").classList.toggle("closed-mode", mode === "CLOSED");
+}
+
+function deselect() {
+  selected = null;
+  activeThread = null;
+  activeMessage = null;
+  showAllThreads = false;
+  $("discussion").hidden = true;
+  $("selection").textContent = "No selection";
+  for (const element of $("viewport").querySelectorAll(".selected")) {
+    element.classList.remove("selected");
+  }
+  renderThreads();
+  updateSelectionGlow();
+  updateCommentStatus();
+  updateMode();
 }
 
 function searchMatches() {
@@ -102,7 +136,7 @@ function jumpComment(direction) {
     : (index + direction + all.length) % all.length;
   const { thread, message } = all[next];
   showAllThreads = false;
-  select(thread.anchor, thread.id, message.id);
+  select(thread.anchor, thread.id, message.id, true);
   snap(selected);
   const row = [...$("threads").querySelectorAll(".message")].find((item) => item.dataset.message === message.id);
   row?.scrollIntoView({ block: "nearest" });
@@ -114,7 +148,7 @@ function compose() {
   const threads = (state?.threads || []).filter((thread) => thread.anchor === selected && !thread.resolved);
   const thread = threads.find((item) => item.id === activeThread) || threads.at(-1);
   showAllThreads = false;
-  select(selected, thread?.id || null, activeMessage);
+  select(selected || "diagram", thread?.id || null, activeMessage, true);
   const input = $("content");
   input.scrollIntoView({ block: "nearest" });
   input.focus({ preventScroll: true });
@@ -136,14 +170,14 @@ async function closeReview() {
   await refresh(true);
   $("discussion").hidden = true;
   $("command-status").textContent = "Review closed";
-  $("vim-mode").textContent = "CLOSED";
+  updateMode();
 }
 
 function leaveCommand() {
   $("command-bar").hidden = true;
   $("keyboard-status").classList.remove("command-mode");
-  $("vim-mode").textContent = state?.closed ? "CLOSED" : "NORMAL";
   $("canvas").focus({ preventScroll: true });
+  updateMode();
 }
 
 async function api(route, data) {
@@ -169,6 +203,23 @@ function transform() {
   }
   $("scale").textContent = `${Math.round(scale * 100)}%`;
   positionDiscussions();
+}
+
+function zoomAt(next, cx, cy) {
+  next = Math.max(.1, Math.min(8, next));
+  const canvas = $("canvas").getBoundingClientRect();
+  const svg = $("viewport").querySelector("svg");
+  if (!svg) return;
+  const bounds = svg.getBoundingClientRect();
+  const ratio = next / scale;
+  x += (cx - (bounds.left - canvas.left)) * (1 - ratio);
+  y += (cy - (bounds.top - canvas.top)) * (1 - ratio);
+  scale = next;
+  transform();
+}
+
+function zoomCenter(factor) {
+  zoomAt(scale * factor, $("canvas").clientWidth / 2, $("canvas").clientHeight / 2);
 }
 
 function owner(key) {
@@ -257,10 +308,12 @@ function positionDiscussions() {
   if (!$("discussion").hidden) {
     const anchor = point(selected);
     const panel = $("discussion");
+    const availableHeight = canvas.height - $("keyboard-status").offsetHeight - 16;
+    panel.style.maxHeight = `${Math.max(0, Math.min(540, availableHeight))}px`;
     const left = anchor.x + panel.offsetWidth + 20 < canvas.width
       ? anchor.x + 20 : anchor.x - panel.offsetWidth - 20;
     panel.style.left = `${Math.max(8, Math.min(left, canvas.width - panel.offsetWidth - 8))}px`;
-    panel.style.top = `${Math.max(8, Math.min(anchor.y, canvas.height - panel.offsetHeight - 8))}px`;
+    panel.style.top = `${Math.max(8, Math.min(anchor.y, availableHeight - panel.offsetHeight + 8))}px`;
   }
 }
 
@@ -297,11 +350,11 @@ function fit() {
   transform();
 }
 
-function select(key, threadId = null, messageId = null) {
+function select(key, threadId = null, messageId = null, openDiscussion = false) {
   selected = key;
   activeThread = threadId;
   activeMessage = messageId;
-  $("discussion").hidden = false;
+  $("discussion").hidden = !openDiscussion;
   const anchor = anchors.find((item) => item.key === key);
   $("selection").textContent = anchor?.label || "Whole diagram";
   $("anchor-hint").textContent = anchor && !anchor.stable
@@ -314,6 +367,7 @@ function select(key, threadId = null, messageId = null) {
   updateSelectionGlow();
   positionDiscussions();
   updateCommentStatus();
+  updateMode();
 }
 
 function button(text, action) {
@@ -363,7 +417,7 @@ function renderThreads() {
     }
     const actions = document.createElement("div");
     actions.className = "actions";
-    if (thread.orphaned && selected !== "diagram") {
+    if (thread.orphaned && selected && selected !== "diagram") {
       actions.append(button("Attach to selection", async () => {
         await api("reattach", { thread: thread.id, anchor: selected });
         await refresh(true);
@@ -406,7 +460,9 @@ async function render(next) {
   await api("anchors", { revision: next.current_revision, anchors });
   rendered = next.current_revision;
   failed = "";
-  if (!anchors.some((item) => item.key === selected)) selected = "diagram";
+  if (selected && selected !== "diagram" && !anchors.some((item) => item.key === selected)) {
+    selected = "diagram";
+  }
   for (const element of diagram.querySelectorAll("[data-anchor][tabindex]")) {
     element.classList.toggle("selected", element.dataset.anchor === selected);
   }
@@ -435,7 +491,10 @@ async function refresh(force = false, rerender = false) {
     }
     state = await api("state");
     updateCommentStatus();
-    $("selection").textContent = anchors.find((anchor) => anchor.key === selected)?.label || "Whole diagram";
+    $("selection").textContent = selected
+      ? anchors.find((anchor) => anchor.key === selected)?.label || "Whole diagram"
+      : "No selection";
+    updateMode();
     $("new-comment").querySelector("button").disabled = state.closed || rendered !== state.current_revision;
     $("close").disabled = state.closed;
     const fingerprint = JSON.stringify(state.threads);
@@ -474,13 +533,17 @@ $("new-comment").addEventListener("submit", async (event) => {
   finally { submit.disabled = !!state?.closed || rendered !== state?.current_revision; }
 });
 $("search").addEventListener("input", () => jumpMatch());
-document.addEventListener("focusin", (event) => {
-  $("vim-mode").textContent = state?.closed ? "CLOSED"
-    : event.target.matches("textarea") ? "INSERT"
-    : event.target === $("command") ? "COMMAND"
-    : event.target === $("search") ? "SEARCH" : "NORMAL";
-});
+document.addEventListener("focusin", updateMode);
+$("help-button").onclick = () => $("help").showModal();
+$("help-close").onclick = () => $("help").close();
 document.addEventListener("keydown", (event) => {
+  if ($("help").open) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      $("help").close();
+    }
+    return;
+  }
   if (event.isComposing || event.ctrlKey || event.metaKey || event.altKey) return;
   const target = event.target;
   if (event.key === "Escape") {
@@ -489,7 +552,7 @@ document.addEventListener("keydown", (event) => {
     $("command-status").textContent = "";
     if (target === $("command")) { leaveCommand(); return; }
     if (target === $("search")) $("search-bar").hidden = true;
-    else if (!target.matches("textarea")) $("discussion").hidden = true;
+    else if (!target.matches("textarea,input,select") && !target.isContentEditable) deselect();
     $("canvas").focus({ preventScroll: true });
     return;
   }
@@ -527,6 +590,12 @@ document.addEventListener("keydown", (event) => {
     return;
   }
   if (target.matches("input,select") || target.isContentEditable) return;
+  if (event.key === "?") {
+    event.preventDefault();
+    leaderPending = false;
+    $("help").showModal();
+    return;
+  }
   if (leaderPending) {
     leaderPending = false;
     $("command-status").textContent = "";
@@ -559,11 +628,20 @@ document.addEventListener("keydown", (event) => {
   } else if (event.key === "n" || event.key === "N") {
     jumpMatch(event.key === "n" ? 1 : -1);
   } else if (event.key === "c") compose();
-  else if (["h", "j", "k", "l"].includes(event.key)) jumpElement(event.key);
+  else if (["h", "j", "k", "l"].includes(event.key)) {
+    if ((event.key === "j" || event.key === "k") && !$("discussion").hidden) {
+      $("threads").scrollTop += event.key === "j" ? 30 : -30;
+    } else if (selected) {
+      jumpElement(event.key);
+    } else {
+      const directions = { h: [30, 0], j: [0, -30], k: [0, 30], l: [-30, 0] };
+      pan(...directions[event.key]);
+    }
+  }
   else jumpComment(event.key === "m" ? 1 : -1);
 });
-$("zoom-in").onclick = () => { scale *= 1.25; transform(); };
-$("zoom-out").onclick = () => { scale /= 1.25; transform(); };
+$("zoom-in").onclick = () => zoomCenter(1.25);
+$("zoom-out").onclick = () => zoomCenter(1 / 1.25);
 $("fit").onclick = fit;
 $("reset").onclick = () => { scale = 1; x = 0; y = 0; transform(); };
 $("whole").onclick = () => { showAllThreads = false; select("diagram"); };
@@ -585,12 +663,12 @@ $("canvas").addEventListener("keydown", (event) => {
     const anchor = event.target.closest("[data-anchor]");
     if (anchor) { event.preventDefault(); select(anchor.dataset.anchor); }
   }
-  if (event.key === "+" || event.key === "=") { scale *= 1.25; transform(); }
-  if (event.key === "-") { scale /= 1.25; transform(); }
+  if (event.key === "+" || event.key === "=") zoomCenter(1.25);
+  if (event.key === "-") zoomCenter(1 / 1.25);
   if (event.key === "0") fit();
   const arrows = { ArrowLeft: [30, 0], ArrowRight: [-30, 0], ArrowUp: [0, 30], ArrowDown: [0, -30] };
   if (arrows[event.key]) {
-    event.preventDefault(); x += arrows[event.key][0]; y += arrows[event.key][1]; transform();
+    event.preventDefault(); pan(...arrows[event.key]);
   }
 });
 $("canvas").addEventListener("wheel", (event) => {
@@ -598,9 +676,7 @@ $("canvas").addEventListener("wheel", (event) => {
   event.preventDefault();
   const box = $("canvas").getBoundingClientRect();
   const cx = event.clientX - box.left, cy = event.clientY - box.top;
-  const next = Math.max(.1, Math.min(8, scale * Math.exp(-event.deltaY / 500)));
-  x = cx - (cx - x) * next / scale; y = cy - (cy - y) * next / scale;
-  scale = next; transform();
+  zoomAt(scale * Math.exp(-event.deltaY / 500), cx, cy);
 }, { passive: false });
 let drag = null;
 $("canvas").addEventListener("pointerdown", (event) => {

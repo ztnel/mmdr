@@ -45,7 +45,8 @@
         </section>
         <footer id="keyboard-status" aria-label="Keyboard navigation">
           <span id="vim-mode">NORMAL</span>
-          <span class="keyboard-hint">hjkl elements · / search · n/N matches · c comment · ;c diagram comment · m/M comments · :e refresh · :q close</span>
+          <span class="keyboard-hint">hjkl navigate · / search · c comment · Esc deselect</span>
+          <button id="help-button" aria-label="Keyboard help">? help</button>
           <div id="search-bar" hidden>
             <span aria-hidden="true">/</span>
             <input id="search" type="search" aria-label="Search diagram elements" autocomplete="off" placeholder="Search diagram">
@@ -61,5 +62,23 @@
       </div>
     </section>
   </main>
+  <dialog id="help" aria-labelledby="help-title">
+    <div class="discussion-heading">
+      <h2 id="help-title">Keyboard help</h2>
+      <button id="help-close" aria-label="Close keyboard help" autofocus>×</button>
+    </div>
+    <dl>
+      <dt>hjkl</dt><dd>Pan in NORMAL; select elements directionally in VISUAL. j/k scrolls a discussion activated with c or m/M.</dd>
+      <dt>/ · n/N</dt><dd>Search elements; cycle next/previous match. Selection does not open a discussion.</dd>
+      <dt>c · ;c</dt><dd>Open/comment on the selection; comment on the whole diagram.</dd>
+      <dt>m/M</dt><dd>Cycle next/previous message globally and open its discussion.</dd>
+      <dt>Enter · Shift+Enter</dt><dd>Post a comment; insert a newline while typing. Enter or Space selects a focused diagram element.</dd>
+      <dt>Escape</dt><dd>Exit typing, search, or command mode; otherwise clear selection and close its discussion. In help, close this menu.</dd>
+      <dt>Arrow keys · +/− · 0</dt><dd>Pan the canvas; zoom in/out around its center; fit the diagram. = also zooms in. Mouse-wheel zoom follows the pointer.</dd>
+      <dt>:e</dt><dd>Re-render the diagram.</dd>
+      <dt>:q · :wq · :x</dt><dd>Close commenting, not the browser tab.</dd>
+      <dt>?</dt><dd>Open this help menu outside editable controls.</dd>
+    </dl>
+  </dialog>
 </body>
 </html>

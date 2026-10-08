@@ -24,6 +24,13 @@ nav { display: flex; align-items: center; gap: 6px; padding: 10px; flex-wrap: wr
 .keyboard-hint { color: #8b949e; font-size: 12px; }
 #keyboard-status { position: absolute; left: 0; bottom: 0; z-index: 3; max-width: 100%; display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 8px 12px; background: #161b22; border-top: 1px solid #30363d; border-right: 1px solid #30363d; font: 12px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; }
 #vim-mode { padding: 1px 6px; background: #39c5cf; color: #0d1117; font-weight: 700; }
+#vim-mode.visual-mode { background: #f0883e; }
+#keyboard-status.closed-mode #vim-mode { background: #f85149; }
+#keyboard-status.closed-mode #command-status { color: #f85149; }
+#help { width: min(620px, calc(100% - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto; background: #161b22; color: #e6edf3; border: 1px solid #30363d; border-radius: 8px; padding: 20px; }
+#help::backdrop { background: #0009; }
+#help dt { color: #39c5cf; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; margin-top: 12px; }
+#help dd { margin: 4px 0 0; color: #8b949e; }
 #command-bar { align-items: center; gap: 0; }
 #command-bar:not([hidden]) { display: flex; }
 #command, #search { font: inherit; background: transparent; color: #e6edf3; border: 0; border-radius: 0; outline: none; padding: 0 4px; }
