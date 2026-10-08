@@ -47,7 +47,7 @@ nav { display: flex; align-items: center; gap: 6px; padding: 10px; flex-wrap: wr
 .message.current-comment { background: #39c5cf15; border-radius: 4px; outline: 2px solid #39c5cf; outline-offset: -2px; padding: 8px; }
 #canvas { position: relative; flex: 1; min-height: 0; overflow: hidden; touch-action: none; background: #0d1117; }
 #canvas:focus-visible { outline: none; }
-#viewport { position: absolute; padding: 20px; }
+#viewport { position: absolute; padding: 20px; user-select: none; -webkit-user-select: none; }
 #viewport svg { max-width: none !important; overflow: visible; }
 [data-anchor] { cursor: pointer; }
 #viewport :is(path, rect, circle, ellipse, polygon, polyline, line)[data-anchor] {
@@ -64,6 +64,8 @@ nav { display: flex; align-items: center; gap: 6px; padding: 10px; flex-wrap: wr
 #viewport :is(text, foreignObject)[data-anchor][tabindex].selected { filter: drop-shadow(0 0 5px #39c5cf); }
 .selection-path-glow { pointer-events: none; opacity: 0; transition: opacity 300ms ease-in-out; }
 .selection-path-glow.visible { opacity: .9; }
+.hover-path-glow { pointer-events: none; opacity: 0; transition: opacity 150ms ease-in-out; }
+.hover-path-glow.visible { opacity: .65; }
 #markers { position: absolute; inset: 0; pointer-events: none; }
 .comment-marker { position: absolute; min-width: 26px; height: 26px; padding: 0 5px; border-radius: 50%; pointer-events: auto; font-weight: 600; transform: translate(-50%, -50%); box-shadow: 0 2px 8px #0008; }
 .pending { color: #e3b341; border-color: #9e6a03; }
