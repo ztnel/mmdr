@@ -16,7 +16,8 @@ from .errors import UsageError
 from .store import Store
 
 ASSETS = Path(__file__).resolve().parent / "assets"
-MAX_REQUEST = 2 * 1024 * 1024
+MAX_REQUEST = 8 * 1024 * 1024
+MAX_IMAGE = 6 * 1024 * 1024
 
 
 class ReviewServer(ThreadingHTTPServer):
@@ -27,6 +28,7 @@ class ReviewServer(ThreadingHTTPServer):
         self.token = secrets.token_urlsafe(32)
         self.instance = secrets.token_hex(16)
         self.feedback_waiters = 0
+        self.quality: dict | None = None
         self.feedback_lock = threading.Lock()
         super().__init__(("127.0.0.1", port), Handler)
         self.origin = f"http://127.0.0.1:{self.server_port}"
@@ -94,7 +96,7 @@ class Handler(BaseHTTPRequestHandler):
         elif route == "/":
             self.send(200, (ASSETS / "index.html").read_bytes(), "text/html; charset=utf-8")
         else:
-            allowed = {"/app.js", "/style.css", "/anchors.js", "/vendor/mermaid.js"}
+            allowed = {"/app.js", "/style.css", "/anchors.js", "/quality.js", "/vendor/mermaid.js"}
             if route not in allowed:
                 self.json(404, {"error": "not found"})
                 return
@@ -117,6 +119,12 @@ class Handler(BaseHTTPRequestHandler):
             route = urlsplit(self.path).path
             if route == "/api/anchors":
                 store.anchors(session, body["revision"], body["anchors"])
+                result = {}
+            elif route == "/api/quality":
+                report, image = body["report"], body.get("image", "")
+                if not isinstance(report, dict) or not isinstance(image, str) or len(image) > MAX_IMAGE:
+                    raise UsageError("invalid quality report")
+                self.server.quality = {"revision": body["revision"], "report": report, "image": image}
                 result = {}
             elif route == "/api/message":
                 result = store.message(

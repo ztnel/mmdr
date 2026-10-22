@@ -1,5 +1,6 @@
 import mermaid from "/vendor/mermaid.js";
 import { indexElements } from "/anchors.js";
+import { analyze, capture } from "/quality.js";
 
 const $ = (id) => document.getElementById(id);
 let capability = location.hash.slice(1) || sessionStorage.getItem("review-capability");
@@ -481,6 +482,17 @@ async function render(next) {
   if (first) fit();
   else transform();
   error("");
+  await reportQuality(diagram, next.current_revision);
+}
+
+async function reportQuality(diagram, revision) {
+  let report, image = "";
+  try { report = analyze(diagram); }
+  catch (exc) { report = { passed: false, findings: [`quality analysis failed: ${exc.message}`] }; }
+  try { image = await capture(diagram); }
+  catch (exc) { report.capture_error = exc.message; }
+  try { await api("quality", { revision, report, image }); }
+  catch (exc) { error(`Quality report failed: ${exc.message}`); }
 }
 
 async function refresh(force = false, rerender = false) {

@@ -725,3 +725,32 @@ test("vim command line cancels, rejects unknown commands, and closes review", as
   }
   expect(closings).toHaveLength(3);
 });
+
+test("readback flags low contrast, overlap, and busy diagrams and captures a PNG", async ({ page }) => {
+  const analyze = () => page.evaluate(async () => {
+    const { analyze } = await import("/quality.js");
+    return analyze(document.querySelector("#viewport svg"));
+  });
+  await page.goto(url);
+  await waitForRender(page, "good");
+  expect((await analyze()).passed).toBe(true);
+
+  writeFileSync(source, "flowchart TD\nA[Alpha] --> B[Beta]\nstyle A fill:#1c1c1c,color:#222\n");
+  await page.reload();
+  await waitForRender(page, "contrast");
+  const bad = await analyze();
+  expect(bad.lowContrast.map((item) => item.label)).toContain("Alpha");
+  expect(bad.passed).toBe(false);
+
+  const wide = Array.from({ length: 30 }, (_, i) => `N${i} --> N${i + 1}`).join("\n");
+  writeFileSync(source, `flowchart TD\n${wide}\n`);
+  await page.reload();
+  await waitForRender(page, "busy");
+  expect((await analyze()).busy).toBe(true);
+
+  const png = await page.evaluate(async () => {
+    const { capture } = await import("/quality.js");
+    return capture(document.querySelector("#viewport svg"));
+  });
+  expect(Buffer.from(png, "base64").subarray(1, 4).toString()).toBe("PNG");
+});

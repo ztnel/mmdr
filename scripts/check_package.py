@@ -11,7 +11,7 @@ with ZipFile(root / f"dist/mmdr-{version}-py3-none-any.whl") as wheel:
     required = {
         "mmdr/__init__.py", "mmdr/cli.py", "mmdr/mcp_server.py", "mmdr/service.py",
         "mmdr/assets/index.html", "mmdr/assets/app.js", "mmdr/assets/style.css",
-        "mmdr/assets/anchors.js", "mmdr/assets/vendor/mermaid.js",
+        "mmdr/assets/anchors.js", "mmdr/assets/quality.js", "mmdr/assets/vendor/mermaid.js",
         "mmdr/assets/vendor/mermaid.js.LEGAL.txt", "mmdr/assets/vendor/THIRD-PARTY.txt",
         f"mmdr-{version}.dist-info/licenses/LICENSE",
     }

@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- `check_diagram` MCP tool: rendered-diagram readback with contrast, overlap and
+  density findings and a PNG so agents can fix illegible or busy diagrams.
+
 ## v0.1.1
 
 ### Fixed

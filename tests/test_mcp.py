@@ -120,6 +120,7 @@ def test_real_stdio_protocol(tmp_path):
                 tools = await client.list_tools()
                 assert {tool.name for tool in tools.tools} == {
                     "open_review", "read_comments", "reply", "wait_for_feedback", "close_review",
+                    "check_diagram",
                 }
                 async def call(name, **arguments):
                     result = await client.call_tool(name, arguments)
@@ -151,3 +152,36 @@ def test_real_stdio_protocol(tmp_path):
                 assert (await call("close_review", session_id=session))["approval"] is False
                 assert (await call("wait_for_feedback", session_id=session))["status"] == "closed"
     asyncio.run(run())
+
+
+def post_quality(opened, revision, report, image=""):
+    origin, token = opened["url"].split("/#")
+    request = urllib.request.Request(
+        origin + "/api/quality", method="POST",
+        data=json.dumps({"revision": revision, "report": report, "image": image}).encode(),
+        headers={"X-Review-Token": token, "Content-Type": "application/json"},
+    )
+    urllib.request.urlopen(request, timeout=3).read()
+
+
+def test_check_waits_for_current_revision_report(tmp_path):
+    source = tmp_path / "diagram.mmd"
+    source.write_text("flowchart LR\nA --> B", encoding="utf-8")
+    reviews = Reviews(tmp_path / "state", [tmp_path])
+    try:
+        opened = reviews.open(str(source), browser=False)
+        session = opened["session_id"]
+        revision = http_state(opened)["current_revision"]
+
+        async def run():
+            with pytest.raises(UsageError, match="no render report"):
+                await reviews.check(session, 1)
+            post_quality(opened, "stale", {"passed": True})
+            with pytest.raises(UsageError, match="no render report"):
+                await reviews.check(session, 1)
+            post_quality(opened, revision, {"passed": False, "findings": ["x"]}, "AAAA")
+            quality = await reviews.check(session, 1)
+            assert quality["report"]["findings"] == ["x"] and quality["image"] == "AAAA"
+        asyncio.run(run())
+    finally:
+        reviews.shutdown()
