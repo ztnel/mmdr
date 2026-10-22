@@ -25,6 +25,15 @@ Keep the returned `session_id`. Reopening the same source/block reuses its
 conversation; the browser server is owned by the MCP connection. The returned
 URL contains a private capability: keep it local.
 
+## Readback
+
+The viewer is dark-only. After `open_review` (browser open), call
+`check_diagram(session_id)` and inspect the returned PNG and JSON findings:
+`lowContrast` (below 4.5:1), `overlaps`, and `busy` density. Fix the source and
+re-check until `passed` is true: set light `color` with dark `fill` in
+`style`/`classDef`, simplify labels, or split a busy diagram into smaller ones.
+Do not ask the human to review a diagram that fails readback.
+
 ## Feedback
 
 Call `read_comments(session_id)` for source, revision, anchors, full threads,

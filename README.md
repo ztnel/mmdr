@@ -46,6 +46,7 @@ Copilot identities, or the agents repository.
 | `open_review` | Open/reuse `.mmd` or a selected Markdown block; returns session and local URL |
 | `read_comments` | Source/revision context, all threads, pending human messages |
 | `reply` | Respond to a human message in its original thread |
+| `check_diagram` | Visual readback of the current render: contrast, overlap, density findings plus a PNG (browser must be open) |
 | `wait_for_feedback` | Wait 1–300 seconds for feedback, timeout, or closure |
 | `close_review` | Preserve conversations and end commenting; never approve code |
 

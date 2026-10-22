@@ -86,6 +86,23 @@ class Reviews:
         self.require(session)
         return {"review": self.store.state(session), "pending": self.store.pending(session)}
 
+    async def check(self, session: str, timeout: int = 15) -> dict:
+        server = self.require(session)
+        if not 1 <= timeout <= 60:
+            raise UsageError("timeout must be between 1 and 60 seconds")
+        deadline = time.monotonic() + timeout
+        while True:
+            revision = self.store.state(session)["current_revision"]
+            quality = server.quality
+            if quality and revision and quality["revision"] == revision:
+                return quality
+            if time.monotonic() >= deadline:
+                raise UsageError(
+                    "no render report for the current revision; open the review URL in a browser "
+                    "and retry"
+                )
+            await asyncio.sleep(.25)
+
     def reply(self, session: str, message: str, content: str, author: str) -> dict:
         self.require(session)
         state = self.store.state(session)

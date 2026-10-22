@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import argparse
+import json
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from mcp.server.fastmcp import FastMCP
+import base64
+
+from mcp.server.fastmcp import FastMCP, Image
 
 from .service import Reviews, state_directory
 
@@ -44,6 +47,20 @@ def create_server(reviews: Reviews) -> FastMCP:
     def read_comments(session_id: str) -> dict:
         """Read source, revision, anchors, all threads, and pending human messages."""
         return reviews.read(session_id)
+
+    @server.tool()
+    async def check_diagram(session_id: str, timeout_seconds: int = 15) -> list:
+        """Visual readback of the rendered diagram for the current source revision.
+
+        Returns JSON findings (contrast, overlaps, density) plus a PNG. Requires the review
+        URL open in a browser. If findings are present, fix the source (lighter text, darker
+        fills, or split a busy diagram) and call again.
+        """
+        quality = await reviews.check(session_id, timeout_seconds)
+        content: list = [json.dumps(quality["report"])]
+        if quality["image"]:
+            content.append(Image(data=base64.b64decode(quality["image"]), format="png"))
+        return content
 
     @server.tool()
     def reply(session_id: str, message_id: str, content: str, author: str) -> dict:
